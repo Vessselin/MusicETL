@@ -2,29 +2,27 @@ import os
 import glob
 import psycopg2
 import pandas as pd
-from sql_queries import create_queries, drop_queries, insert_song, insert_artist, insert_user, insert_time, insert_songplay, select_song
+from sql_queries import create_table_queries, drop_table_queries, song_table_insert, artist_table_insert, user_table_insert, time_table_insert, songplay_table_insert, song_select
 
-def remove_tables(cur, conn):
-    """Elimina las tablas existentes."""
-    for query in drop_queries:
+def drop_tables(cur, conn):
+    for query in drop_table_queries:
         cur.execute(query)
         conn.commit()
 
-
-def setup_tables(cur, conn):
-    """Crea nuevas tablas según las consultas definidas."""
-    for query in create_queries:
+def create_tables(cur, conn):
+    for query in create_table_queries:
         cur.execute(query)
         conn.commit()
 
+import psycopg2
 
-def connect_to_database():
-    """Conecta a la base de datos y retorna el cursor y la conexión."""
+def create_database():
+    # Conectar a la base de datos existente (en este caso no es necesario crear una nueva base de datos)
     conn = psycopg2.connect(
         host="localhost",
         dbname="practica_musica",
-        user="practica_musica_user",
-        password="dL7lBx6LBhzEftJbtEPq1pNw8FhlzNTI",
+        user="postgres",
+        password="0863",
         port="5432"
     )
     conn.set_session(autocommit=True)
@@ -32,94 +30,85 @@ def connect_to_database():
 
     return cur, conn
 
-
-def handle_song_file(cur, filepath):
-    """Procesa el archivo de canciones y lo inserta en la base de datos."""
+def process_song_file(cur, filepath):
     df = pd.read_json(filepath, lines=True)
     for index, row in df.iterrows():
-        # Insertar registro de canción
-        song_details = row[["song_id", "title", "artist_id", "year", "duration"]].values
-        cur.execute(insert_song, song_details)
+        # insert song record
+        song_data = row[["song_id", "title", "artist_id", "year", "duration"]].values
+        cur.execute(song_table_insert, song_data)
 
-        artist_details = row[["artist_id", "artist_name", "artist_location", "artist_latitude", "artist_longitude"]].values
-        cur.execute(insert_artist, artist_details)
+        artist_data = row[["artist_id", "artist_name", "artist_location", "artist_latitude", "artist_longitude"]].values
+        cur.execute(artist_table_insert, artist_data)
 
-
-def handle_log_file(cur, filepath):
-    """Procesa el archivo de logs y lo inserta en la base de datos."""
+def process_log_file(cur, filepath):
     df = pd.read_json(filepath, lines=True)
-    df = df[df['page'] == 'NextSong']
+    df = df[df['page']=='NextSong']
 
-    timestamps = pd.to_datetime(df['ts'], unit='ms') 
+    t = pd.to_datetime(df['ts'], unit='ms') 
+    
+    time_data = []
+    for ts in t:
+        time_data.append([ts, ts.hour, ts.day, ts.week, ts.month, ts.year, ts.day_name()])
+    column_labels = ('start_time', 'hour', 'day', 'week', 'month', 'year', 'weekday')
+    time_df = pd.DataFrame.from_records(time_data, columns=column_labels)
 
-    time_records = []
-    for ts in timestamps:
-        time_records.append([ts, ts.hour, ts.day, ts.week, ts.month, ts.year, ts.day_name()])
-    time_columns = ('start_time', 'hour', 'day', 'week', 'month', 'year', 'weekday')
-    time_df = pd.DataFrame.from_records(time_records, columns=time_columns)
+    for i, row in time_df.iterrows():
+        cur.execute(time_table_insert, list(row))
 
-    for _, row in time_df.iterrows():
-        cur.execute(insert_time, list(row))
-
-    # Cargar tabla de usuarios
+    # load user table
     user_df = df[["userId", "firstName", "lastName", "gender", "level"]]
 
-    for _, row in user_df.iterrows():
-        cur.execute(insert_user, row)
+    for i, row in user_df.iterrows():
+        cur.execute(user_table_insert, row)
 
-    # Insertar registros de "songplay"
+    # insert songplay records
     for index, row in df.iterrows():
-        cur.execute(select_song, (row.song, row.artist, row.length))
+        cur.execute(song_select, (row.song, row.artist, row.length))
         results = cur.fetchone()
 
         if results:
-            song_id, artist_id = results
+            songid, artistid = results
         else:
-            song_id, artist_id = None, None
+            songid, artistid = None, None
 
-        songplay_record = (
+        songplay_data = (
             index, 
             pd.to_datetime(row["ts"], unit='ms'),
             row["userId"],
             row["level"],
-            song_id,
-            artist_id,
+            songid,
+            artistid,
             row["sessionId"],
             row["location"],
             row["userAgent"]
         )
-        cur.execute(insert_songplay, songplay_record)
+        cur.execute(songplay_table_insert, songplay_data)
 
-
-def process_files(cur, conn, filepath, func):
-    """Procesa todos los archivos en un directorio dado usando la función proporcionada."""
+def process_data(cur, conn, filepath, func):
     all_files = []
     for root, dirs, files in os.walk(filepath):
-        files = glob.glob(os.path.join(root, '*.json'))
+        files = glob.glob(os.path.join(root,'*.json'))
         for f in files:
             all_files.append(os.path.abspath(f))
 
-    total_files = len(all_files)
-    print('{} archivos encontrados en {}'.format(total_files, filepath))
+    num_files = len(all_files)
+    print('{} files found in {}'.format(num_files, filepath))
 
     for i, datafile in enumerate(all_files, 1):
         func(cur, datafile)
         conn.commit()
-        print('{}/{} archivos procesados.'.format(i, total_files))
-
+        print('{}/{} files processed.'.format(i, num_files))
 
 def main():
-    """Función principal para ejecutar el ETL."""
-    cur, conn = connect_to_database()
+    cur, conn = create_database()
     
-    remove_tables(cur, conn)
-    setup_tables(cur, conn)
+    drop_tables(cur, conn)
+    create_tables(cur, conn)
 
-    process_files(cur, conn, filepath='data/song_data', func=handle_song_file)
-    process_files(cur, conn, filepath='data/log_data', func=handle_log_file)
+    process_data(cur, conn, filepath='data/song_data', func=process_song_file)
+    process_data(cur, conn, filepath='data/log_data', func=process_log_file)
 
     conn.close()
-
 
 if __name__ == "__main__":
     main()

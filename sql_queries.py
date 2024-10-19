@@ -1,111 +1,111 @@
-# ELIMINAR TABLAS
+# DROP TABLES
+songplay_table_drop = "DROP TABLE IF EXISTS songplays"
+user_table_drop = "DROP TABLE IF EXISTS users"
+song_table_drop = "DROP TABLE IF EXISTS songs"
+artist_table_drop = "DROP TABLE IF EXISTS artists"
+time_table_drop = "DROP TABLE IF EXISTS time"
 
-drop_songplay_table = "DROP TABLE IF EXISTS songplay"
-drop_user_table = "DROP TABLE IF EXISTS users"
-drop_song_table = "DROP TABLE IF EXISTS songs"
-drop_artist_table = "DROP TABLE IF EXISTS artists"
-drop_time_table = "DROP TABLE IF EXISTS time"
+# Eliminar la restricción de la clave foránea manualmente
+remove_foreign_key = """
+ALTER TABLE songplays DROP CONSTRAINT IF EXISTS songplays_user_id_fkey;
+"""
 
-# CREAR TABLAS
-
-create_songplay_table = ("""
+# CREATE TABLES
+songplay_table_create = ("""
 CREATE TABLE IF NOT EXISTS songplays (
-        songplay_id VARCHAR PRIMARY KEY, 
-        start_time DATE REFERENCES time(start_time), 
-        user_id VARCHAR NOT NULL REFERENCES users(user_id), 
-        level VARCHAR, 
-        song_id VARCHAR REFERENCES songs(song_id), 
-        artist_id VARCHAR REFERENCES artists(artist_id), 
-        session_id VARCHAR, 
-        location TEXT, 
-        user_agent VARCHAR);
+    songplay_id varchar PRIMARY KEY, 
+    start_time date REFERENCES time(start_time), 
+    user_id varchar NOT NULL REFERENCES users(user_id), 
+    level varchar, 
+    song_id varchar REFERENCES songs(song_id), 
+    artist_id varchar REFERENCES artists(artist_id), 
+    session_id varchar, 
+    location text, 
+    user_agent varchar);
 """)
 
-create_user_table = ("""
+user_table_create = ("""
 CREATE TABLE IF NOT EXISTS users (
-        user_id VARCHAR PRIMARY KEY, 
-        first_name VARCHAR, 
-        last_name VARCHAR, 
-        gender VARCHAR, 
-        level VARCHAR);
+    user_id varchar PRIMARY KEY, 
+    first_name varchar, 
+    last_name varchar, 
+    gender varchar, 
+    level varchar);
 """)
 
-create_song_table = ("""
+song_table_create = ("""
 CREATE TABLE IF NOT EXISTS songs (
-        song_id VARCHAR PRIMARY KEY, 
-        title TEXT NOT NULL, 
-        artist_id VARCHAR NOT NULL, 
-        year INT, 
-        duration FLOAT);
+    song_id varchar PRIMARY KEY, 
+    title text NOT NULL, 
+    artist_id varchar NOT NULL, 
+    year int, 
+    duration float);
 """)
 
-create_artist_table = ("""
+artist_table_create = ("""
 CREATE TABLE IF NOT EXISTS artists (
-        artist_id VARCHAR PRIMARY KEY, 
-        name TEXT NOT NULL, 
-        location TEXT, 
-        latitude FLOAT, 
-        longitude FLOAT);
+    artist_id varchar PRIMARY KEY, 
+    name text NOT NULL, 
+    location text, 
+    latitude float, 
+    longitude float);
 """)
 
-create_time_table = ("""
+time_table_create = ("""
 CREATE TABLE IF NOT EXISTS time (
-        start_time DATE PRIMARY KEY, 
-        hour INT, 
-        day INT, 
-        week INT, 
-        month INT, 
-        year INT, 
-        weekday VARCHAR);
+    start_time date PRIMARY KEY, 
+    hour int, 
+    day int, 
+    week int, 
+    month int, 
+    year int, 
+    weekday varchar);
 """)
 
-# INSERTAR REGISTROS
-
-insert_songplay = ("""
+# INSERT RECORDS
+songplay_table_insert = ("""
 INSERT INTO songplays (songplay_id, start_time, user_id, level, song_id, artist_id, session_id, location, user_agent) 
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON CONFLICT (songplay_id) DO NOTHING;
 """)
 
-insert_user = ("""
+user_table_insert = ("""
 INSERT INTO users
     (user_id, first_name, last_name, gender, level)
     VALUES (%s, %s, %s, %s, %s)
     ON CONFLICT (user_id) DO NOTHING;
 """)
 
-insert_song = ("""
+song_table_insert = ("""
 INSERT INTO songs
     (song_id, title, artist_id, year, duration)
     VALUES (%s, %s, %s, %s, %s)
     ON CONFLICT (song_id) DO NOTHING;
 """)
 
-insert_artist = ("""
+artist_table_insert = ("""
 INSERT INTO artists
     (artist_id, name, location, latitude, longitude)
     VALUES (%s, %s, %s, %s, %s)
     ON CONFLICT (artist_id) DO NOTHING;
 """)
 
-insert_time = ("""
+time_table_insert = ("""
 INSERT INTO time
     (start_time, hour, day, week, month, year, weekday)
     VALUES (%s, %s, %s, %s, %s, %s, %s)
     ON CONFLICT (start_time) DO NOTHING;
 """)
 
-# BUSCAR CANCIONES
-
-select_song = ("""
+# FIND SONGS
+song_select = ("""
 SELECT song_id, artists.artist_id
     FROM songs JOIN artists ON songs.artist_id = artists.artist_id
-        WHERE songs.title = %s
-        AND artists.name = %s
-        AND songs.duration = %s
+    WHERE songs.title = %s
+    AND artists.name = %s
+    AND songs.duration = %s
 """)
 
-# LISTA DE CONSULTAS
-
-create_queries = [create_user_table, create_artist_table, create_song_table, create_time_table, create_songplay_table]
-drop_queries = [drop_songplay_table, drop_user_table, drop_song_table, drop_artist_table, drop_time_table]
+# QUERY LISTS
+create_table_queries = [user_table_create, artist_table_create, song_table_create, time_table_create, songplay_table_create]
+drop_table_queries = [remove_foreign_key, songplay_table_drop, user_table_drop, song_table_drop, artist_table_drop, time_table_drop]
