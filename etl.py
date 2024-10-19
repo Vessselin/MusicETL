@@ -17,7 +17,7 @@ def create_tables(cur, conn):
 import psycopg2
 
 def create_database():
-    # Conectar a la base de datos existente (en este caso no es necesario crear una nueva base de datos)
+    # Conectar a la base de datos existente 
     conn = psycopg2.connect(
         host="localhost",
         dbname="practica_musica",
@@ -33,7 +33,7 @@ def create_database():
 def process_song_file(cur, filepath):
     df = pd.read_json(filepath, lines=True)
     for index, row in df.iterrows():
-        # insert song record
+        # inserta registro de cancion
         song_data = row[["song_id", "title", "artist_id", "year", "duration"]].values
         cur.execute(song_table_insert, song_data)
 
@@ -41,6 +41,7 @@ def process_song_file(cur, filepath):
         cur.execute(artist_table_insert, artist_data)
 
 def process_log_file(cur, filepath):
+    #Procesa el archivo de logs y lo inserta en la base de datos.
     df = pd.read_json(filepath, lines=True)
     df = df[df['page']=='NextSong']
 
@@ -55,13 +56,13 @@ def process_log_file(cur, filepath):
     for i, row in time_df.iterrows():
         cur.execute(time_table_insert, list(row))
 
-    # load user table
+    # Cargar tabla de usuarios
     user_df = df[["userId", "firstName", "lastName", "gender", "level"]]
 
     for i, row in user_df.iterrows():
         cur.execute(user_table_insert, row)
 
-    # insert songplay records
+    # Insertar registros de "songplay"
     for index, row in df.iterrows():
         cur.execute(song_select, (row.song, row.artist, row.length))
         results = cur.fetchone()
